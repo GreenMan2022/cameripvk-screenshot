@@ -1,3 +1,4 @@
+pip install --upgrade pip
 Flask==3.0.3
 flask-cors==5.0.0
 yt-dlp==2025.3.23
