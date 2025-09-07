@@ -1,11 +1,13 @@
 # screenshot-service.py
 from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS  # ← Добавьте это
 import subprocess
 import tempfile
 import os
 import logging
 
 app = Flask(__name__)
+CORS(app)  # ✅ Разрешаем все домены (или см. ниже — только свой)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -17,12 +19,11 @@ def screenshot():
 
     logger.info(f"Запрос на скриншот: {url}")
 
-    # Временный файл
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
     temp_file.close()
 
     try:
-        # Захват кадра через ffmpeg
+        # Захват кадра
         result = subprocess.run([
             'ffmpeg', '-y', '-i', url,
             '-vframes', '1', '-f', 'image2',
@@ -35,8 +36,7 @@ def screenshot():
             logger.error(f"FFmpeg ошибка: {error_msg}")
             return jsonify({"error": "Не удалось захватить кадр", "details": error_msg}), 500
 
-        # Отправляем изображение напрямую
-        return send_file(temp_file.name, mimetype='image/jpeg', as_attachment=False)
+        return send_file(temp_file.name, mimetype='image/jpeg')
 
     except Exception as e:
         if os.path.exists(temp_file.name):
