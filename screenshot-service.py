@@ -1,13 +1,12 @@
-# screenshot-service.py
-from flask import Flask, request, jsonify, send_file
-from flask_cors import CORS  # ← Добавьте это
 import subprocess
 import tempfile
 import os
 import logging
+from flask import Flask, request, send_file, jsonify
+from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # ✅ Разрешаем все домены (или см. ниже — только свой)
+CORS(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -23,14 +22,25 @@ def screenshot():
     temp_file.close()
 
     try:
-        # Захват кадра
+        # Сначала получаем истинный URL потока через yt-dlp
+        result = subprocess.run([
+            'yt-dlp', '--get-url', '--format', 'best', url
+        ], capture_output=True, text=True, timeout=15)
+
+        if result.returncode != 0:
+            logger.error(f"yt-dlp get-url ошибка: {result.stderr}")
+            return jsonify({"error": "Не удалось получить URL потока"}), 500
+
+        direct_url = result.stdout.strip().split('\n')[0]
+        logger.info(f"Прямой URL потока: {direct_url}")
+
+        # Теперь делаем скриншот
         result = subprocess.run([
             'ffmpeg', '-y',
-            '-user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            '-user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             '-headers', 'Referer: https://glaz.naroda.ru/\r\n',
-            '-i', url,
+            '-i', direct_url,
             '-vframes', '1', '-f', 'image2',
-            '-t', '00:00:01', '-ss', '00:00:05',
             temp_file.name
         ], timeout=30, capture_output=True)
 
